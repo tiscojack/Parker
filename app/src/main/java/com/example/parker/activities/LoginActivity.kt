@@ -1,18 +1,21 @@
-package com.example.parker
+package com.example.parker.activities
 
-import androidx.appcompat.app.AppCompatActivity
-import android.os.Bundle
 import android.content.Intent
+import android.os.Bundle
+import androidx.appcompat.app.AppCompatActivity
+import com.example.parker.R
+import com.example.parker.databinding.ActivityLoginBinding
 import com.firebase.ui.auth.AuthUI
-import com.google.firebase.auth.FirebaseAuth
 import com.firebase.ui.auth.FirebaseAuthUIActivityResultContract
 import com.firebase.ui.auth.data.model.FirebaseAuthUIAuthenticationResult
+import com.google.firebase.auth.FirebaseAuth
+
 
 class LoginActivity : AppCompatActivity() {
 
-    //TODO: Customization and fixing dark theme
-
     private lateinit var auth: FirebaseAuth
+
+    private lateinit var viewBinding: ActivityLoginBinding
 
     private val signInLauncher = registerForActivityResult(
         FirebaseAuthUIActivityResultContract()
@@ -38,20 +41,25 @@ class LoginActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_login)
+        viewBinding = ActivityLoginBinding.inflate(layoutInflater)
+        setContentView(viewBinding.root)
+
         auth = FirebaseAuth.getInstance()
-        val currentuser = auth.currentUser
+        val currentUser = auth.currentUser
 
 
-        if (currentuser != null) {
+        if (currentUser != null) {
             val intent = Intent(this, DashboardActivity::class.java)
             this.startActivity(intent)
         } else {
             val signInIntent = AuthUI.getInstance()
                 .createSignInIntentBuilder()
                 .setAvailableProviders(providers)
+                .setLogo(R.drawable.map)
+                .setTheme(R.style.Theme_Parker)
                 .build()
             signInLauncher.launch(signInIntent)
         }
+
     }
 }

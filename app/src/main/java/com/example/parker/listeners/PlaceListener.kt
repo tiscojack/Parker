@@ -20,18 +20,19 @@ class PlaceListener(private val map: GoogleMap, private val context: Context) : 
 
     private val places = mutableListOf<PlaceLocal>()
 
-    private val bicycleIcon: BitmapDescriptor by lazy {
-        val color = ContextCompat.getColor(context, R.color.colorPrimary)
-        BitmapHelper.vectorToBitmap(context, R.drawable.ic_directions_bike_black_24dp, color)
+    private val parkingIcon: BitmapDescriptor by lazy {
+        val color = ContextCompat.getColor(context, R.color.green_500)
+        BitmapHelper.vectorToBitmap(context, R.drawable.ic_baseline_local_parking_24, color)
     }
 
     private fun addMarkers(googleMap: GoogleMap) {
         places.forEach { place ->
+            Log.d("marker", "added in ${place.latLng} and name: ${place.name}")
             val marker = googleMap.addMarker(
                 MarkerOptions()
                     .title(place.name)
                     .position(place.latLng)
-                    .icon(bicycleIcon)
+                    .icon(parkingIcon)
             )
 
             // Set place as the tag on the marker object so it can be referenced within

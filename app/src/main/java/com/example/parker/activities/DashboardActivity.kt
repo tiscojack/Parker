@@ -1,15 +1,21 @@
-package com.example.parker
+package com.example.parker.activities
 
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import androidx.appcompat.app.AppCompatActivity
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.view.View
-import android.widget.*
+import android.widget.Button
+import android.widget.ImageButton
+import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
 import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
+import com.example.parker.R
+import com.example.parker.databinding.ActivityDashboardBinding
 import com.example.parker.listeners.GrantPermissionListener
 import com.firebase.ui.auth.AuthUI
 import com.google.firebase.auth.ktx.auth
@@ -17,57 +23,77 @@ import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
 import com.squareup.picasso.Picasso
 
+
 class DashboardActivity : AppCompatActivity() {
 
+    private lateinit var viewBinding: ActivityDashboardBinding
 
-    private var allPermissionGranted: Boolean? = null
+    private var locationPermissionGranted: Boolean? = null
+    private var cameraActivityPermissionGranted: Boolean? = null
     private val TAG = DashboardActivity::class.simpleName
 
+    private lateinit var uid : String
 
     private val database =
         Firebase.database("https://parker-3cbe0-default-rtdb.europe-west1.firebasedatabase.app")
     private val myRef = database.getReference("users")
 
-    private fun hasPerms(): Boolean {
+    private fun hasLocationPerms(): Boolean {
         /*
          * Request location permission, so that we can get the location of the
          * device. The result of the permission request is handled by a callback,
          * onRequestPermissionsResult.
          */
-        if (allPermissionGranted == null) {
-            for (permission in GrantPermissionListener.PERMISSION_NEEDED) {
+        if (locationPermissionGranted == null) {
+            for (permission in GrantPermissionListener.getPermsList(0)) {
                 if (ContextCompat.checkSelfPermission(
                         this,
                         permission
                     ) != PackageManager.PERMISSION_GRANTED
                 ) {
+                    Log.d(TAG, "Failed to grant location perms")
                     return false
-                    Log.d(TAG, "Failed to grant perms")
                 }
             }
             return true
         }
-
-        return allPermissionGranted!!
-
+        return locationPermissionGranted!!
     }
+
+    private fun hasCameraActivityPerms(): Boolean {
+        if (cameraActivityPermissionGranted == null) {
+            for (permission in GrantPermissionListener.getPermsList(1)) {
+                if (ContextCompat.checkSelfPermission(
+                        this,
+                        permission
+                    ) != PackageManager.PERMISSION_GRANTED
+                ) {
+                    Log.d(TAG, "Failed to grant camera perms")
+                    return false
+                }
+            }
+            return true
+        }
+        return cameraActivityPermissionGranted!!
+    }
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_dashboard)
+        viewBinding = ActivityDashboardBinding.inflate(layoutInflater)
+        setContentView(viewBinding.root)
 
         // register all the ImageButtons with their appropriate IDs
         val logOutB: ImageButton = findViewById(R.id.logOutB)
-        val profileB: ImageButton = findViewById(R.id.profileB)
 
         // register all the Buttons with their appropriate IDs
         val rewardB: Button = findViewById(R.id.rewardB)
-        val editProfileB: Button = findViewById(R.id.editProfileB)
+        val deleteProfileB: Button = findViewById(R.id.deleteProfileB)
 
         // register all the card views with their appropriate IDs
         val contributeCard: CardView = findViewById(R.id.contributeCard)
         val mapCard: CardView = findViewById(R.id.mapCard)
-        val learnCard: CardView = findViewById(R.id.learnCard)
+        val sourcecodeCard: CardView = findViewById(R.id.learnCard)
         val adminCard: CardView = findViewById(R.id.adminCard)
         val helpCard: CardView = findViewById(R.id.helpCard)
         val settingsCard: CardView = findViewById(R.id.settingsCard)
@@ -85,7 +111,8 @@ class DashboardActivity : AppCompatActivity() {
             }
 
             val karmatext: TextView = findViewById(R.id.karma)
-            myRef.child("${user.uid}").get().addOnSuccessListener {
+            uid = user.uid
+            myRef.child(uid).get().addOnSuccessListener {
                 Log.d(
                     "firebase",
                     "Got value ${it.value}"
@@ -115,7 +142,6 @@ class DashboardActivity : AppCompatActivity() {
                 }
         }
 
-        //TODO: handle each of the buttons with the OnClickListener
         rewardB.setOnClickListener {
             Toast.makeText(
                 this,
@@ -123,27 +149,21 @@ class DashboardActivity : AppCompatActivity() {
                 Toast.LENGTH_SHORT
             ).show()
         }
-        editProfileB.setOnClickListener {
-            Toast.makeText(
-                this,
-                "TODO: Editing Profile",
-                Toast.LENGTH_SHORT
-            ).show()
+        deleteProfileB.setOnClickListener {
+            user!!.delete().addOnCompleteListener{task ->
+                if(task.isSuccessful){
+                    Log.d(TAG, "User account deleted")
+                    myRef.child(uid).removeValue()
+                    val intent = Intent(this, LoginActivity::class.java)
+                    this.startActivity(intent)
+                }
+            }
         }
 
 
-        //TODO: handle each of the cards with the OnClickListener
-        contributeCard.setOnClickListener {
-            Toast.makeText(
-                this,
-                "TODO: Add custom Marker",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
 
-
-        if (!hasPerms()) {
-            val listener: View.OnClickListener = GrantPermissionListener(this)
+        if (!hasLocationPerms()) {
+            val listener: View.OnClickListener = GrantPermissionListener(this, 0)
             mapCard.setOnClickListener(listener)
         } else {
             mapCard.setOnClickListener {
@@ -152,14 +172,23 @@ class DashboardActivity : AppCompatActivity() {
             }
         }
 
+        if (!hasCameraActivityPerms()) {
+            val listener: View.OnClickListener = GrantPermissionListener(this, 1)
+            contributeCard.setOnClickListener(listener)
+        } else {
+            contributeCard.setOnClickListener {
+                val intent = Intent(this, CameraActivity::class.java)
+                this.startActivity(intent)
+            }
+        }
 
-        //TODO: Find a usage for this card
-        learnCard.setOnClickListener {
-            Toast.makeText(
-                this,
-                "TODO: I don't know",
-                Toast.LENGTH_SHORT
-            ).show()
+
+
+        sourcecodeCard.setOnClickListener {
+            val url = "https://github.com/tiscojack/Parker"
+            val intent = Intent(Intent.ACTION_VIEW)
+            intent.data = Uri.parse(url)
+            startActivity(intent)
         }
         adminCard.setOnClickListener {
             Toast.makeText(
@@ -194,7 +223,7 @@ class DashboardActivity : AppCompatActivity() {
 
         Log.d(TAG, "onRequestPermissionsResult")
 
-        // Check if the permission are granted or
+        // Check if the permission are granted
 
         for (result in grantResults) {
             if (result != PackageManager.PERMISSION_GRANTED) {
@@ -202,7 +231,10 @@ class DashboardActivity : AppCompatActivity() {
                     TAG,
                     "A needed permission is not granted!"
                 )
-                allPermissionGranted = false
+                when (requestCode) {
+                    123 -> locationPermissionGranted = false
+                    101 -> cameraActivityPermissionGranted = false
+                }
                 return
             }
         }
@@ -211,8 +243,20 @@ class DashboardActivity : AppCompatActivity() {
             TAG,
             "permissions obtained"
         )
-        this.allPermissionGranted = true
-        val intent = Intent(this, MapsActivity::class.java)
+        lateinit var intent: Intent
+        when (requestCode) {
+            123 -> {
+                this.locationPermissionGranted = true
+                intent = Intent(this, MapsActivity::class.java)
+            }
+            101 -> {
+                this.cameraActivityPermissionGranted = true
+                intent = Intent(this, CameraActivity::class.java)
+            }
+            else -> {
+                intent = Intent(this, DashboardActivity::class.java)
+            }
+        }
         this.startActivity(intent)
         finish()
     }

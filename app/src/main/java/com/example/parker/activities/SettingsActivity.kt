@@ -1,10 +1,11 @@
-package com.example.parker
+package com.example.parker.activities
 
 import android.content.Intent
 import android.os.Bundle
 import android.widget.ImageButton
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.commit
+import com.example.parker.R
 import com.example.parker.fragments.SettingsFragment
 
 class SettingsActivity : AppCompatActivity() {

@@ -1,6 +1,7 @@
-package com.example.parker
+package com.example.parker.activities
 
 import android.annotation.SuppressLint
+import android.app.Dialog
 import android.content.Context
 import android.content.Intent
 import android.location.Location
@@ -9,8 +10,9 @@ import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
 import android.view.View
-import android.widget.Button
-import android.widget.ImageButton
+import android.view.Window
+import android.widget.*
+import com.example.parker.R
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
@@ -18,6 +20,9 @@ import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
 import com.example.parker.databinding.ActivityMapsBinding
 import com.example.parker.listeners.PlaceListener
+import com.example.parker.places.PlaceLocal
+import com.example.parker.places.PlaceResponse
+import com.example.parker.utilities.GlideApp
 import com.example.parker.utilities.MarkerInfoWindowAdapter
 import com.firebase.ui.auth.AuthUI
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -25,6 +30,8 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
+import com.google.firebase.storage.ktx.storage
+import kotlin.properties.Delegates
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
@@ -36,6 +43,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         Firebase.database("https://parker-3cbe0-default-rtdb.europe-west1.firebasedatabase.app")
     private val myRef = database.getReference("places")
 
+    private val storageRef =
+        Firebase.storage("gs://parker-3cbe0.appspot.com").getReference("images")
+
     // The entry point to the Fused Location Provider.
     private lateinit var fusedLocationProviderClient: FusedLocationProviderClient
 
@@ -46,6 +56,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     // The geographical location where the device is currently located. That is, the last-known
     // location retrieved by the Fused Location Provider.
     private var lastKnownLocation: Location? = null
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -131,6 +142,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
         // Get the current location of the device and set the position of the map.
         getDeviceLocation()
+
     }
 
     /**
@@ -149,7 +161,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                     // Set the map's camera position to the current location of the device.
                     lastKnownLocation = task.result
                     if (lastKnownLocation != null) {
-                        mMap?.moveCamera(
+                        mMap.moveCamera(
                             CameraUpdateFactory.newLatLngZoom(
                                 LatLng(
                                     lastKnownLocation!!.latitude,
@@ -161,16 +173,19 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                 } else {
                     Log.d(TAG, "Current location is null. Using defaults.")
                     Log.e(TAG, "Exception: %s", task.exception)
-                    mMap?.moveCamera(
+                    mMap.moveCamera(
                         CameraUpdateFactory
                             .newLatLngZoom(defaultLocation, DEFAULT_ZOOM.toFloat())
                     )
-                    mMap?.uiSettings?.isMyLocationButtonEnabled = false
+                    mMap.uiSettings.isMyLocationButtonEnabled = false
                 }
             }
 
         } catch (e: SecurityException) {
-            Log.e("Exception: %s", e.message, e)
+            Log.e(
+                "Exception: %s",
+                e.message, e
+            )
         }
     }
 
@@ -180,13 +195,128 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     @SuppressLint("MissingPermission")
     private fun updateLocationUI() {
         try {
-            mMap?.isMyLocationEnabled = true
-            mMap?.uiSettings?.isMyLocationButtonEnabled = true
+            mMap.isMyLocationEnabled = true
+            mMap.uiSettings.isMyLocationButtonEnabled = true
             myRef.addValueEventListener(PlaceListener(mMap, this))
             mMap.setInfoWindowAdapter(MarkerInfoWindowAdapter(this))
+            mMap.setOnInfoWindowClickListener {
+                showCustomDialog(it.tag)
+            }
         } catch (e: SecurityException) {
-            Log.e("Exception: %s", e.message, e)
+            Log.e(
+                "Exception: %s",
+                e.message, e
+            )
         }
+    }
+
+
+    private fun showCustomDialog(tag: Any?) {
+        var karma: Long
+        val dialog = Dialog(this)
+        //We have added a title in the custom layout. So let's disable the default title.
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        //The user will be able to cancel the dialog by clicking anywhere outside the dialog.
+        dialog.setCancelable(true)
+        //Mention the name of the layout of your custom dialog.
+        dialog.setContentView(R.layout.custom_marker_dialog)
+
+        val place = tag as? PlaceLocal ?: return
+
+        var userOwner: String?
+        val regex = Regex(".+\\.jpg")
+        var isCustom : Boolean
+        if (regex.matches(place.name)) {
+            isCustom = true
+            userOwner = place.name.dropLast(9)
+            Log.d(
+                "Dialog",
+                userOwner
+            )
+        } else {
+            return
+        }
+
+        var vote by Delegates.observable(false) { _, oldValue, newValue ->
+            if (newValue != oldValue) {
+                Log.d(
+                    "Dialog",
+                    "New value: $newValue, old value: $oldValue"
+                )
+                myRef.parent?.child("users")?.child("$userOwner")?.get()
+                    ?.addOnSuccessListener {
+                        karma = it.value as Long
+                        Log.d(
+                            "Dialog",
+                            "User current karma: $karma"
+                        )
+                        karma = if (newValue) {
+                            karma.plus(1)
+                        } else {
+                            karma.minus(1)
+                        }
+                        Log.d(
+                            "Dialog",
+                            "User karma after upvote : $karma"
+                        )
+                        myRef.parent?.child("users")?.child("$userOwner")?.setValue(karma)
+                    }
+
+                val query = myRef.orderByChild("name").equalTo(tag.name)
+
+                query.get().addOnSuccessListener {
+                    for (childData in it.children) {
+                        val place: PlaceResponse? = it.getValue(PlaceResponse::class.java)
+                    }
+                    Log.d("Dialog", it.value.toString())
+
+                    val map = it.value as Map<String, *>
+                    karma = place.rating.toLong()
+                    Log.d(
+                        "Dialog",
+                        "Marker current rating: $karma"
+                    )
+                    karma = if (newValue) {
+                        karma.plus(1)
+                    } else {
+                        karma.minus(1)
+                    }
+                    Log.d(
+                        "Dialog",
+                        "Marker rating after upvote : $karma"
+                    )
+                    myRef.child(map.keys.elementAt(0)).child("rating").setValue(karma)
+                }
+            }
+        }
+
+        //Initializing the views of the dialog.
+        val upvoteButton = dialog.findViewById<Button>(R.id.upvote)
+        val downvoteButton = dialog.findViewById<Button>(R.id.downvote)
+
+        // If GlideApp is not defined, build the application (comment it out, build and kapt will create the instance)
+        if (isCustom) {
+            val image: ImageView = dialog.findViewById(R.id.photo_download)
+            GlideApp.with(this)
+                .load(storageRef.child(place.name))
+                .into(image)
+        }
+
+
+        upvoteButton.setOnClickListener {
+            vote = true
+            dialog.dismiss()
+        }
+
+
+        downvoteButton.setOnClickListener {
+            vote = false
+            dialog.dismiss()
+        }
+
+
+
+        dialog.show()
     }
 
     companion object {

@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:orientation="vertical"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:gravity="center_horizontal"
+    android:gravity="center"
     android:padding="8dp">
 
     <TextView
@@ -25,6 +26,14 @@
         tools:text="123 Main Street" />
 
     <TextView
+        android:id="@+id/text_view_toggle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@android:color/black"
+        android:textSize="16sp"
+        android:visibility="gone" />
+
+    <TextView
         android:id="@+id/text_view_rating"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -32,4 +41,5 @@
         android:textSize="16sp"
         tools:text="Rating: 3" />
 
+-->
 </LinearLayout>

@@ -2,7 +2,6 @@
 
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/linearLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -27,7 +26,21 @@
         android:padding="8dp"
         android:src="@drawable/ic_back"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        android:contentDescription="Back Button" />
+
+    <TextView
+        android:id="@+id/textView3"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:letterSpacing="0.025"
+        android:layout_marginStart="64dp"
+        android:text="Select a marker \n and click bottom right to navigate"
+        android:textColor="@color/white"
+        android:textStyle="bold"
+        app:layout_constraintStart_toStartOf="@+id/view"
+        app:layout_constraintTop_toBottomOf="@+id/textView" />
 
     <TextView
         android:id="@+id/textView"
@@ -64,11 +77,13 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom|left"
-            android:backgroundTint="@color/green_500"
+            android:insetLeft="4dp"
             android:contentDescription="Logout Button"
+            app:backgroundTint="@color/green_700"
             app:icon="@drawable/ic_logout"
             app:iconGravity="textTop"
-            app:iconPadding="0dp" />
+            app:iconPadding="0dp"
+            app:iconTint="#FFFFFF" />
 
     </FrameLayout>
 
